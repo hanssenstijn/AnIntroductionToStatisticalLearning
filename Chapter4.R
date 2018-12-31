@@ -3,10 +3,12 @@ rm(list=ls())
 
 # install package
 install.packages("car")
+install.packages("corrplot")
 # set library
 library(ISLR)
 library(MASS)
 library(car)
+library(corrplot)
 
 # load data
 data("Boston")
@@ -99,3 +101,46 @@ predict(lm.fit, data.frame(horsepower=c(98)), interval="prediction")
 par(mfrow =c(2,2))
 plot(lm.fit)
 dev.off()
+
+# Q 9
+# plot all correlations in one figure
+pairs(Auto)
+
+M=cor(subset(Auto, select=-name))
+corrplot(M, type="upper")
+lm.fit1 = lm(mpg~.-name, data=Auto)
+summary(lm.fit1)
+
+par(mfrow=c(2,2))
+plot(lm.fit1)
+dev.off()
+plot(predict(lm.fit1), rstudent(lm.fit1))
+abline (h=3 ,lwd =3, col ="lightgray", lty = 3)
+identify(predict(lm.fit1), rstudent(lm.fit1),name)
+
+lm.fit2 = lm(mpg~cylinders*displacement+displacement*weight)
+summary(lm.fit2)
+
+lm.fit3 = lm(mpg~log(weight)+sqrt(horsepower)+acceleration+I(acceleration^2))
+summary(lm.fit3)
+
+par(mfrow=c(2,2))
+plot(lm.fit3)
+dev.off()
+plot(predict(lm.fit3), rstudent(lm.fit3))
+
+# Q 10
+attach(Carseats)
+lm.fit = lm(Sales~Price+Urban+US)
+summary(lm.fit)
+
+lm.fit2 = lm(Sales ~ Price + US)
+summary(lm.fit2)
+
+confint(lm.fit2)
+plot(predict(lm.fit2), rstudent(lm.fit2))
+
+par(mfrow=c(2,2))
+plot(lm.fit2)
+dev.off()
+
