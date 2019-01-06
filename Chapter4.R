@@ -1,146 +1,158 @@
 # remove all objects at once
 rm(list=ls())
 
-# install package
-install.packages("car")
-install.packages("corrplot")
-# set library
+#library
 library(ISLR)
-library(MASS)
-library(car)
-library(corrplot)
 
 # load data
-data("Boston")
-?Boston
-fix(Boston)
-names(Boston)
-attach(Boston)
-lm.fit=lm(medv~lstat)
-summary(lm.fit)
-names(lm.fit)
-coef(lm.fit)
-confint(lm.fit)
-predict (lm.fit ,data.frame(lstat =(c(5 ,10 ,15) )),
-         interval ="confidence")
-predict (lm.fit ,data.frame(lstat =(c(5 ,10 ,15) )),
-         interval ="prediction")
-plot(lstat ,medv ,pch ="+")
-abline (lm.fit ,lwd =3, col ="red ")
-# plot the lm.fit, get all four figures at one showing. 
-par(mfrow =c(2,2))
-plot(lm.fit)
-# stop the par mfrow
-dev.off()
-plot(hatvalues (lm.fit ))
+data("Smarket")
 
-# Multiple linear regression
-lm.fit =lm(medv~lstat+age ,data=Boston )
-summary (lm.fit)
+# inspect data
+names(Smarket)
+dim(Smarket )
+summary (Smarket )
 
-lm.fit =lm(medv~. ,data=Boston )
-summary (lm.fit)
+pairs(Smarket )
+cor(Smarket )
+# remove last, which is categorical
+cor(Smarket [,-9])
 
-vif(lm.fit)
+attach (Smarket )
 
-# use all but one variable : y~.-x
-lm.fit1=lm(medv~.-age,data=Boston)
+#plot
+plot(Volume)
 
-# interaction terms
-summary(lm(medv~lstat*age ,data=Boston ))
+# logistic regression
+# glm() generalized linear models, class of models that includes logsitic regression
+# family = binomial
+glm.fit=glm(Direction~Lag1+Lag2+Lag3+Lag4+Lag5+Volume, data=Smarket ,family =binomial )
+summary (glm.fit )
 
-# non-linear transformations of the predictors
-# I(X^2) --> the I() is need since "^" has speacial meaning in a formula
-lm.fit2=lm(medv~lstat +I(lstat ^2))
-summary (lm.fit2)
+# get coeficient in different ways
+coef(glm.fit)
+summary(glm.fit)$coef
+summary(glm.fit)$coef[,4]
 
-# anova to further quantify the extent to which the quadratic fit is superior
-anova(lm.fit ,lm.fit2)
+# predict
+# type="response" --> output probabilities of the form P(Y = 1|X),
+glm.probs =predict(glm.fit,type ="response")
+glm.probs[1:10]
 
-par(mfrow =c(2,2))
-plot(lm.fit2)
-dev.off()
+# We know that these values correspond to the probability of the market going up, rather than down, because the
+# contrasts() function indicates that R has created a dummy variable with a 1 for Up.
+contrasts(Direction)
 
-lm.fit5=lm(medv~poly(lstat ,5))
-summary (lm.fit5)
+# convert predicton into up or down class
+# The first command creates a vector of 1,250 Down elements. The second line
+# transforms to Up all of the elements for which the predicted probability of a
+# market increase exceeds 0.5.
+glm.pred=rep ("Down " ,1250)
+glm.pred[glm.probs >.5]=" Up"
 
-# Qualitative predictors
-data("Carseats")
-fix(Carseats)
-names(Carseats)
+# confusion matrix
+table(glm.pred ,Direction)
+# correct predictions
+(507+145) /1250
 
-# generates dummy variables automatically.
-lm.fit =lm(Sales~.+ Income :Advertising +Price :Age ,data=Carseats )
-summary (lm.fit)
+# training test set
+# boolean (True or False) can be used to obtain a subset of the rows/columns of a matrix
+train =(Year <2005)
+Smarket.2005= Smarket[!train,]
+dim(Smarket.2005)
+Direction.2005= Direction[!train]
 
-attach(Carseats)
-# return coding dummy variables : contrasts()
-contrasts(ShelveLoc)
-?contrasts
+# use subset of data to train model
+glm.fit=glm(Direction~Lag1+Lag2+Lag3+Lag4+Lag5+Volume,data=Smarket ,family =binomial ,subset =train )
+glm.probs =predict(glm.fit ,Smarket.2005, type="response")
+glm.pred=rep ("Down " ,252)
+glm.pred[glm.probs >.5]=" Up"
+table(glm.pred ,Direction.2005)
 
-# Writing functions
-LoadLibraries=function (){
-    library (ISLR)
-    library (MASS)
-    print (" The libraries have been loaded .")
-}
-LoadLibraries()
+# use only predictors which have highest predictive power
+glm.fit=glm(Direction~Lag1+Lag2 ,data=Smarket ,family =binomial ,
+            subset =train)
+glm.probs =predict(glm.fit ,Smarket.2005 , type="response")
+glm.pred=rep ("Down" ,252)
+glm.pred[glm.probs >.5]=" Up"
+table(glm.pred ,Direction.2005)
 
-# Applied
-# Q 8
-data("Auto")
-attach(Auto)
-lm.fit=lm(mpg~horsepower)
-summary(lm.fit)
-dev.off()
-plot(horsepower ,mpg ,pch ="+")
-abline (lm.fit ,lwd =3, col ="red ")
-# What is the predicted mpg associated with a horsepower of 98?
-predict(lm.fit, data.frame(horsepower=c(98)), interval="prediction")
+# Suppose that we want to predict the returns associated with particular
+# values of Lag1 and Lag2.
+predict(glm.fit ,newdata =data.frame(Lag1=c(1.2 ,1.5) ,
+                                      Lag2=c(1.1 , -0.8) ),type ="response")
 
-par(mfrow =c(2,2))
-plot(lm.fit)
-dev.off()
+# Linear Discriminant Analysis
+# lda() function we need the MASS package
+library(MASS)
+lda.fit=lda(Direction~Lag1+Lag2,data=Smarket,subset =train)
+# 49.2% of the training observations correspond to days during which the market went down.
+lda.fit
+# It also provides the group means; these are the average of each predictor within each class,
+# If ???0.642×Lag1???0.514×Lag2 is large, then the LDA classifier will
+# predict a market increase, and if it is small, then the LDA classifier will
+# predict a market decline.
+lda.pred=predict(lda.fit , Smarket.2005)
+names(lda.pred)
+lda.class =lda.pred$class
+table(lda.class ,Direction.2005)
+# using other threshold
+sum(lda.pred$posterior [,1]>.4)
 
-# Q 9
-# plot all correlations in one figure
-pairs(Auto)
+# Quadratic discriminant analysis
+qda.fit=qda(Direction~Lag1+Lag2 ,data=Smarket ,subset =train)
+# But it does not contain the coefficients
+# of the linear discriminants, because the QDA classifier involves a
+# quadratic, rather than a linear, function of the predictors.
+qda.fit
+qda.class =predict(qda.fit ,Smarket.2005)$class
+table(qda.class ,Direction.2005)
+(30+121) / 252
 
-M=cor(subset(Auto, select=-name))
-corrplot(M, type="upper")
-lm.fit1 = lm(mpg~.-name, data=Auto)
-summary(lm.fit1)
+# K-nearest Neighbors (class library)
+library(class)
 
-par(mfrow=c(2,2))
-plot(lm.fit1)
-dev.off()
-plot(predict(lm.fit1), rstudent(lm.fit1))
-abline (h=3 ,lwd =3, col ="lightgray", lty = 3)
-identify(predict(lm.fit1), rstudent(lm.fit1),name)
+# train, test and class labels
+train.X=cbind(Lag1 ,Lag2)[train ,]
+test.X=cbind (Lag1 ,Lag2)[!train ,]
+train.Direction =Direction[train]
 
-lm.fit2 = lm(mpg~cylinders*displacement+displacement*weight)
-summary(lm.fit2)
+set.seed (1)
+knn.pred=knn(train.X,test.X,train.Direction ,k=1)
+table(knn.pred ,Direction.2005)
+(83+43) /252
 
-lm.fit3 = lm(mpg~log(weight)+sqrt(horsepower)+acceleration+I(acceleration^2))
-summary(lm.fit3)
+knn.pred=knn(train.X,test.X,train.Direction ,k=3)
+table(knn.pred ,Direction.2005)
+mean(knn.pred== Direction.2005)
 
-par(mfrow=c(2,2))
-plot(lm.fit3)
-dev.off()
-plot(predict(lm.fit3), rstudent(lm.fit3))
+# An application to caravan insurance data
+library(ISLR)
+data("Caravan")
+dim(Caravan )
+attach(Caravan)
+summary(Purchase)
+348/5822
 
-# Q 10
-attach(Carseats)
-lm.fit = lm(Sales~Price+Urban+US)
-summary(lm.fit)
+# standardize data so that all variables are given a mean of zero and std of 1
+# scale()
+standardized.X=scale(Caravan[,-86])
+var(Caravan [,1])
+var(Caravan [,2])
+var( standardized.X[,1])
+var( standardized.X[,2])
 
-lm.fit2 = lm(Sales ~ Price + US)
-summary(lm.fit2)
-
-confint(lm.fit2)
-plot(predict(lm.fit2), rstudent(lm.fit2))
-
-par(mfrow=c(2,2))
-plot(lm.fit2)
-dev.off()
-
+# test train
+test =1:1000
+train.X=standardized.X[-test ,]
+test.X=standardized.X[test ,]
+train.Y=Purchase [-test]
+test.Y=Purchase [test]
+set.seed (1)
+# knn = 1
+knn.pred=knn (train.X,test.X,train.Y,k=1)
+mean(test.Y!= knn.pred)
+mean(test.Y!="No")
+table(knn.pred ,test.Y)
+#knn = 3
+knn.pred=knn (train.X,test.X,train.Y,k=3)
+table(knn.pred ,test.Y)
