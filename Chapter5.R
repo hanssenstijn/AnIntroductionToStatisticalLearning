@@ -152,3 +152,86 @@ library(boot)
 boot(Default, boot.fn, 50)
 
 #Q7
+library(ISLR)
+summary(Weekly)
+set.seed(1)
+attach(Weekly)
+glm.fit = glm(Direction ~ Lag1 + Lag2, data = Weekly, family = binomial)
+summary(glm.fit)
+# leave out the first observation
+glm.fit = glm(Direction ~ Lag1 + Lag2, data = Weekly[-1, ], family = binomial)
+summary(glm.fit)
+# predict. predicts true;UP but it was actually down!
+predict.glm(glm.fit, Weekly[1, ], type = "response") > 0.5
+
+count = rep(0, dim(Weekly)[1])
+for (i in 1:(dim(Weekly)[1])) {
+    glm.fit = glm(Direction ~ Lag1 + Lag2, data = Weekly[-i, ], family = binomial)
+    is_up = predict.glm(glm.fit, Weekly[i, ], type = "response") > 0.5
+    is_true_up = Weekly[i, ]$Direction == "Up"
+    if (is_up != is_true_up) 
+        count[i] = 1
+}
+# how many errors
+sum(count)
+# error rate
+mean(count)
+
+#Q8
+# generate dataset
+set.seed(1)
+y = rnorm(100)
+x = rnorm(100)
+y = x - 2 * x^2 + rnorm(100)
+plot(x, y)
+
+library(boot)
+Data = data.frame(x, y)
+set.seed(1)
+# first least sqaures model
+glm.fit = glm(y ~ x)
+cv.glm(Data, glm.fit)$delta
+# poly model
+glm.fit = glm(y ~ poly(x, 2))
+cv.glm(Data, glm.fit)$delta
+# cubic model
+glm.fit = glm(y ~ poly(x, 3))
+cv.glm(Data, glm.fit)$delta
+# ^4
+glm.fit = glm(y ~ poly(x, 4))
+cv.glm(Data, glm.fit)$delta
+# The quadratic polynomial had the lowest LOOCV test error rate. This was expected because it matches the true form of Y.
+summary(glm.fit)
+
+#Q9
+library(MASS)
+summary(Boston)
+set.seed(1)
+attach(Boston)
+medv.mean = mean(medv)
+medv.mean
+medv.err = sd(medv)/sqrt(length(medv))
+medv.err
+
+# using boostrap
+boot.fn = function(data, index) return(mean(data[index]))
+library(boot)
+bstrap = boot(medv, boot.fn, 1000)
+bstrap
+
+# t.test
+t.test(medv)
+# bootstrap
+c(bstrap$t0 - 2 * 0.4119, bstrap$t0 + 2 * 0.4119)
+
+medv.med = median(medv)
+medv.med
+# bootstrap median
+boot.fn = function(data, index) return(median(data[index]))
+boot(medv, boot.fn, 1000)
+
+medv.tenth = quantile(medv, c(0.1))
+medv.tenth
+# bootstrap quantile
+boot.fn = function(data, index) return(quantile(data[index], c(0.1)))
+boot(medv, boot.fn, 1000)
