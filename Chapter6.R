@@ -108,3 +108,61 @@ plot(mean.cv.errors ,type="b")
 # CV selects an 11 variable model
 reg.best=regsubsets(Salary~.,data=Hitters , nvmax =19)
 coef(reg.best ,11)
+
+#Ridge Regression and the Lasso
+library(glmnet)
+# The model.matrix() function is particularly useful for creating x; not only
+#does it produce a matrix corresponding to the 19 predictors but it also
+#automatically transforms any qualitative variables into dummy variables.
+x=model.matrix (Salary~.,Hitters)[,-1]
+y=Hitters$Salary
+
+# Ridge Regression
+# If alpha=0 then a ridge regression model is fit, and if alpha=1 then a lasso model is fit.
+grid =10^ seq (10,-2, length =100)
+ridge.mod =glmnet (x,y,alpha =0, lambda =grid)
+# Note that by default, the glmnet() function standardizes the
+# variables so that they are on the same scale.
+dim(coef(ridge.mod ))
+# These are the coefficients when ?? = 11,498
+ridge.mod$lambda[50]
+coef(ridge.mod)[,50]
+sqrt(sum(coef(ridge.mod)[ -1 ,50]^2))
+# For instance, we can obtain the ridge regression coefficients for a new value of ??, say 50:
+predict(ridge.mod ,s=50, type ="coefficients")[1:20 ,]
+
+# example
+set.seed(1)
+train=sample (1: nrow(x), nrow(x)/2)
+test=(-train)
+y.test=y[test]
+ridge.mod =glmnet(x[train ,],y[train],alpha =0, lambda =grid ,
+                   thresh =1e-12)
+ridge.pred=predict(ridge.mod ,s=4, newx=x[test ,])
+mean(( ridge.pred -y.test)^2)
+mean(( mean(y[train ])-y.test)^2)
+lm(y~x, subset =train)
+
+# The lasso
+lasso.mod =glmnet(x[train ,],y[train],alpha =1, lambda =grid)
+plot(lasso.mod)
+# We now perform cross-validation and compute the associated test error.
+set.seed (1)
+cv.out =cv.glmnet(x[train ,],y[train],alpha =1)
+plot(cv.out)
+bestlam =cv.out$lambda.min
+lasso.pred=predict(lasso.mod ,s=bestlam ,newx=x[test ,])
+mean((lasso.pred -y.test)^2)
+out=glmnet(x,y,alpha =1, lambda =grid)
+lasso.coef=predict(out ,type ="coefficients",s=bestlam )[1:20 ,]
+lasso.coef
+
+# PCR and PLS Regression
+library(pls)
+set.seed(2)
+pcr.fit=pcr(Salary~., data=Hitters ,scale=TRUE ,
+            validation ="CV")
+# Note that pcr() reports the root mean squared error; in order to obtain
+# the usual MSE, we must square this quantity
+summary(pcr.fit)
+validationplot(pcr.fit ,val.type="MSEP")
