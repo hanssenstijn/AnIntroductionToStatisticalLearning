@@ -166,3 +166,130 @@ pcr.fit=pcr(Salary~., data=Hitters ,scale=TRUE ,
 # the usual MSE, we must square this quantity
 summary(pcr.fit)
 validationplot(pcr.fit ,val.type="MSEP")
+
+# Exercises
+# applied section
+# Q8
+# Create 100 X and ?? variables
+set.seed(1)
+X = rnorm(100)
+eps = rnorm(100)
+
+# We are selecting ??0=3, ??1=2, ??2=???3 and ??3=0.3.
+beta0 = 3
+beta1 = 2
+beta2 = -3
+beta3 = 0.3
+Y = beta0 + beta1 * X + beta2 * X^2 + beta3 * X^3 + eps
+
+# Use regsubsets to select best model having polynomial of X of degree 10
+library(leaps)
+data.full = data.frame(y = Y, x = X)
+mod.full = regsubsets(y ~ poly(x, 10, raw = T), data = data.full, nvmax = 10)
+mod.summary = summary(mod.full)
+# Find the model size for best cp, BIC and adjr2
+which.min(mod.summary$cp)
+which.min(mod.summary$bic)
+which.max(mod.summary$adjr2)
+# Plot cp, BIC and adjr2
+plot(mod.summary$cp, xlab = "Subset Size", ylab = "Cp", pch = 20, type = "l")
+points(3, mod.summary$cp[3], pch = 4, col = "red", lwd = 7)
+plot(mod.summary$bic, xlab = "Subset Size", ylab = "BIC", pch = 20, type = "l")
+points(3, mod.summary$bic[3], pch = 4, col = "red", lwd = 7)
+plot(mod.summary$adjr2, xlab = "Subset Size", ylab = "Adjusted R2", pch = 20, 
+     type = "l")
+points(3, mod.summary$adjr2[3], pch = 4, col = "red", lwd = 7)
+# check coeficients for 3
+coefficients(mod.full, id = 3)
+
+# Training data on lasso
+library(glmnet)
+xmat = model.matrix(y ~ poly(x, 10, raw = T), data = data.full)[, -1]
+mod.lasso = cv.glmnet(xmat, Y, alpha = 1)
+best.lambda = mod.lasso$lambda.min
+best.lambda
+plot(mod.lasso)
+# Next fit the model on entire data using best lambda
+best.model = glmnet(xmat, Y, alpha = 1)
+predict(best.model, s = best.lambda, type = "coefficients")
+
+# Q9
+# Load and split the College data
+library(ISLR)
+set.seed(11)
+sum(is.na(College))
+train.size = dim(College)[1] / 2
+train = sample(1:dim(College)[1], train.size)
+test = -train
+College.train = College[train, ]
+College.test = College[test, ]
+
+# NUmber of applications is the Apps variable.
+lm.fit = lm(Apps~., data=College.train)
+lm.pred = predict(lm.fit, College.test)
+mean((College.test[, "Apps"] - lm.pred)^2)
+
+# Ridge
+train.mat = model.matrix(Apps~., data=College.train)
+test.mat = model.matrix(Apps~., data=College.test)
+grid = 10 ^ seq(4, -2, length=100)
+mod.ridge = cv.glmnet(train.mat, College.train[, "Apps"], alpha=0, lambda=grid, thresh=1e-12)
+lambda.best = mod.ridge$lambda.min
+lambda.best
+ridge.pred = predict(mod.ridge, newx=test.mat, s=lambda.best)
+mean((College.test[, "Apps"] - ridge.pred)^2)
+
+# PCR
+library(pls)
+pcr.fit = pcr(Apps~., data=College.train, scale=T, validation="CV")
+validationplot(pcr.fit, val.type="MSEP")
+pcr.pred = predict(pcr.fit, College.test, ncomp=10)
+mean((College.test[, "Apps"] - data.frame(pcr.pred))^2)
+
+#Q10
+# test error
+# create data
+set.seed(1)
+p = 20
+n = 1000
+x = matrix(rnorm(n * p), n, p)
+B = rnorm(p)
+B[3] = 0
+B[4] = 0
+B[9] = 0
+B[19] = 0
+B[10] = 0
+eps = rnorm(p)
+y = x %*% B + eps
+# split
+train = sample(seq(1000), 100, replace = FALSE)
+y.train = y[train, ]
+y.test = y[-train, ]
+x.train = x[train, ]
+x.test = x[-train, ]
+
+# traing set 
+library(leaps)
+regfit.full = regsubsets(y ~ ., data = data.frame(x = x.train, y = y.train), 
+                         nvmax = p)
+val.errors = rep(NA, p)
+x_cols = colnames(x, do.NULL = FALSE, prefix = "x.")
+for (i in 1:p) {
+    coefi = coef(regfit.full, id = i)
+    pred = as.matrix(x.train[, x_cols %in% names(coefi)]) %*% coefi[names(coefi) %in% 
+                                                                        x_cols]
+    val.errors[i] = mean((y.train - pred)^2)
+}
+plot(val.errors, ylab = "Training MSE", pch = 19, type = "b")
+
+# test set
+val.errors = rep(NA, p)
+for (i in 1:p) {
+    coefi = coef(regfit.full, id = i)
+    pred = as.matrix(x.test[, x_cols %in% names(coefi)]) %*% coefi[names(coefi) %in% 
+                                                                       x_cols]
+    val.errors[i] = mean((y.test - pred)^2)
+}
+plot(val.errors, ylab = "Test MSE", pch = 19, type = "b")
+which.min(val.errors)
+coef(regfit.full, id = 16)
