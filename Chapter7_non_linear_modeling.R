@@ -38,3 +38,24 @@ plot(age ,wage ,xlim=agelims ,cex =.5, col =" darkgrey ")
 title (" Degree -4 Polynomial ",outer =T)
 lines(age.grid ,preds$fit ,lwd =2, col =" blue")
 matlines (age.grid ,se.bands ,lwd =1, col =" blue",lty =3)
+
+# ANOVA
+fit.1= lm(wage~education +age ,data=Wage)
+fit.2= lm(wage~education +poly(age ,2) ,data=Wage)
+fit.3= lm(wage~education +poly(age ,3) ,data=Wage)
+anova(fit.1, fit.2, fit.3)
+
+# Splines
+install.packages("splines2")
+library(splines)
+# we saw that regression splines can be fit by constructing an appropriate matrix of basis functions.
+# The bs() function generates the entire matrix of bs()
+# basis functions for splines with the specified set of knots.
+# By default, cubic splines are produced.
+# Fitting wage to age using a regression spline is simple:
+fit=lm(wage~bs(age ,knots =c(25 ,40 ,60) ),data=Wage)
+pred=predict(fit ,newdata =list(age =age.grid),se=T)
+plot(age ,wage ,col =" gray ")
+lines(age.grid ,pred$fit ,lwd =2)
+lines(age.grid ,pred$fit +2* pred$se ,lty ="dashed")
+lines(age.grid ,pred$fit -2* pred$se ,lty ="dashed")
