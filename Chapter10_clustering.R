@@ -125,3 +125,41 @@ Principal Component ", col =" brown3 ")
 # Note that the elements of pve can also be computed directly from the summary,
 # summary(pr.out)$importance[2,], and the elements of cumsum(pve)
 # are given by summary(pr.out)$importance[3,].)
+
+# clustering the observations
+sd.data=scale(nci.data)
+# distance matrix computation
+data.dist=dist(sd.data)
+plot(hclust(data.dist), labels =nci.labs , main="Complete
+Linkage", xlab ="", sub ="", ylab ="")
+
+hc.out =hclust(dist(sd.data))
+hc.clusters =cutree(hc.out ,4)
+table(hc.clusters ,nci.labs)
+par(mfrow =c(1,1))
+plot(hc.out, labels =nci.labs)
+abline (h=139, col =" red ")
+hc.out
+
+# compare to kmeans
+set.seed(2)
+km.out =kmeans(sd.data , 4, nstart =20)
+km.clusters =km.out$cluster
+table(km.clusters ,hc.clusters)
+# Rather than performing hierarchical clustering on the entire data matrix,
+# we can simply perform hierarchical clustering on the first few principal
+# component score vectors, as follows:
+hc.out =hclust(dist(pr.out$x[ ,1:5]))
+plot(hc.out,labels =nci.labs , main="Hier. Clust . on First
+Five Score Vectors")
+table(cutree (hc.out ,4) , nci.labs)
+
+# Exercises
+# Q8
+library(ISLR)
+set.seed(1)
+pr.out = prcomp(USArrests, center=T, scale=T)
+pr.var = pr.out$sdev^2
+pve = pr.var / sum(pr.var)
+pve
+
